@@ -17,6 +17,15 @@ app.use(cors(corsOptions));
   
 app.use(bodyParser.json());
 
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'https://e-workspace-peach.vercel.app');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,HEAD,OPTIONS,POST,PUT,DELETE');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, csrf-token');
+    next();
+});
+
+
 // Routes
 
 app.use('/api/skills', skillRoutes);
