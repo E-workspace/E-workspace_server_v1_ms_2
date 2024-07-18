@@ -10,7 +10,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: 'e-workspace-peach.vercel.app',
     credentials: true,
 }));    
 app.use(bodyParser.json());
