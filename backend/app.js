@@ -9,10 +9,12 @@ const skillRoutes = require('./routes/skillRoutes');
 const app = express();
 
 // Middleware
-app.use(cors({
-    origin: 'e-workspace-peach.vercel.app',
+const corsOptions = {
+    origin: ['https://e-workspace-peach.vercel.app', 'http://localhost:3000'],
     credentials: true,
-}));    
+};
+app.use(cors(corsOptions));
+  
 app.use(bodyParser.json());
 
 // Routes
