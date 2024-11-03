@@ -34,6 +34,10 @@ app.use((req, res, next) => {
     next();
 });
 
+app.get('/', (req, res) => {
+    res.send('Welcome to the API root endpoint');
+});
+
 // Routes
 app.use('/api/skills', skillRoutes);
 app.use('/api/startinterview/', skillRoutes);
