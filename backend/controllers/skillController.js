@@ -3,9 +3,13 @@ const config = require('../config'); // Adjust path as necessary
 const Skill = require('../model/skillModel'); // Adjust path as necessary
 const Savecode = require('../model/Savecode')
 const GetSavedCode = require('../model/GetSavedCode')
+const moment = require('moment'); // Import moment for date formatting
 const SheduleInterview = require('../model/SheduleInterview')
 const sendEmail = require('./utils/mailer'); // Adjust path as necessary
-const axios = require('axios')
+const DailyTasks = require('../model/Getdailytask')
+const axios = require('axios');
+const Savenotes = require('../model/SaveNotes');
+const FcmToken = require('../model/fcmTokenModel')
 require('dotenv').config()
 
 exports.addSkills = async (req, res) => {
@@ -29,9 +33,11 @@ const getquestionsFromCloud = async (userdetails) => {
 
   for (let i = 0; i < userdetails.length; i++) {
       const { skill, level } = userdetails[i];
-
+      
+      
       const skillPath = skill.toLowerCase() // Convert skill to lowercase and replace spaces with hyphens
       const levelPath = level.toLowerCase();
+      console.log(skillPath, levelPath, "skill level")
 
       try {
           const response = await axios.get(`https://api.github.com/repos/${process.env.GITHUB_USERNAME}/questionBank/contents/${skillPath}/${levelPath}/questions.json`, {
@@ -39,10 +45,13 @@ const getquestionsFromCloud = async (userdetails) => {
                   'Authorization': `token ${process.env.GITHUB_TOKEN}`,
                   'Accept': 'application/vnd.github.v3.raw' // To get the raw content
               }
-          });
+          }); 
 
           if (response.status === 200 && response.data) {
               const retrievedQuestions = response.data;
+              console.log(retrievedQuestions, "retrievedQuestions")
+             
+
               questions.push({
                   skill,
                   level,
@@ -271,7 +280,17 @@ exports.CheckBookingID = async (req, res) => {
   
 
 
-
+  exports.getAllTasks = async (req, res) => {
+    console.log("Controller called");
+    try {
+        const tasks = await DailyTasks.find();
+        console.log(tasks, "tasks");
+        res.status(200).json(tasks);
+    } catch (error) {
+        console.error("Error retrieving tasks", error); 
+        res.status(500).json({ message: 'Error retrieving tasks', error });
+    }
+  };
 
 
   exports.AiService = async (req, res) => {
@@ -327,3 +346,150 @@ exports.CheckBookingID = async (req, res) => {
     }
 };
 
+  exports.saveNote = async (req, res) => {
+    try {
+      const { username, email, role, title, keyPoint, description } = req.body;
+
+      if (!title || !description) {
+        return res.status(400).json({ error: 'Title and description are required' });
+      }
+
+      // Store the current date as an ISO string
+      const newNote = new Savenotes({
+        username,
+        email,
+        role,
+        title,
+        keyPoint,
+        description,
+        createdAt: new Date(), // Use a Date object which automatically gets stored as an ISO string
+      });
+
+      const savedNote = await newNote.save();
+
+      res.status(201).json({
+        message: 'Note saved successfully',
+        note: savedNote,
+      });
+    } catch (error) {
+      console.error('Error saving note:', error);
+      res.status(500).json({
+        error: 'Failed to save the note',
+      });
+    }
+  };
+
+  exports.getNotesByUser = async (req, res) => {
+    try {
+      const { username, email } = req.body;
+
+      if (!username || !email) {
+        return res.status(400).json({ error: 'Username and email are required' });
+      }
+
+      const notes = await Savenotes.find({ username, email });
+
+      res.status(200).json({
+        message: 'Notes retrieved successfully',
+        notes,
+      });
+    } catch (error) {
+      console.error('Error retrieving notes:', error);
+      res.status(500).json({
+        error: 'Failed to retrieve notes',
+      });
+    }
+  };
+
+  // Edit Note (Update an existing note by its ID)
+  // Other controller methods...
+
+  exports.editNote = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { title, keyPoint, description } = req.body;
+
+      if (!title || !description) {
+        return res.status(400).json({ error: 'Title and description are required' });
+      }
+
+      const updatedNote = await Savenotes.findByIdAndUpdate(
+        id,
+        { title, keyPoint, description, updatedAt: new Date() },
+        { new: true } // Return the updated document
+      );
+
+      if (!updatedNote) {
+        return res.status(404).json({ error: 'Note not found' });
+      }
+
+      res.status(200).json({
+        message: 'Note updated successfully',
+        note: updatedNote,
+      });
+    } catch (error) {
+      console.error('Error updating note:', error);
+      res.status(500).json({ error: 'Failed to update the note' });
+    }
+  };
+
+  // Make sure to export other functions if they exist as well.
+
+
+
+  // Delete Note (Remove a note by its ID)
+  exports.deleteNote = async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const deletedNote = await Savenotes.findByIdAndDelete(id);
+
+      if (!deletedNote) {
+        return res.status(404).json({ error: 'Note not found' });
+      }
+
+      res.status(200).json({
+        message: 'Note deleted successfully',
+        note: deletedNote,
+      });
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      res.status(500).json({
+        error: 'Failed to delete the note',
+      });
+    }
+  };
+
+  exports.saveFcmToken = async (req, res) => {
+    const { userId, token } = req.body; // Expecting userId and token from request body
+  
+    if (!userId || !token) {
+        return res.status(400).json({ message: 'User ID and token are required.' });
+    }
+
+    try {
+        // Check if the user already has a token
+        const existingToken = await FcmToken.findOne({ userId });
+        
+        // Log the existing token for debugging
+        console.log(existingToken ? 'Existing token found' : 'No existing token found', existingToken);
+
+        if (existingToken) {
+            // If a token exists, update it
+            existingToken.token = token; // Update the token
+            const updatedToken = await existingToken.save(); // Save the updated token
+            console.log('Updated token in DB:', updatedToken); // Log the updated token
+            return res.status(200).json({ message: 'FCM token updated successfully.' });
+        } else {
+            // If no token exists, create a new one
+            const newToken = new FcmToken({ userId, token }); // Create new token document
+            const savedToken = await newToken.save(); // Save the new token
+            console.log(savedToken, "save tone success")
+            console.log('Saved new token in DB:', savedToken); // Log the new token
+            return res.status(201).json({ message: 'FCM token saved successfully.' });
+        }
+    } catch (error) {
+        console.error('Error saving FCM token:', error);
+        return res.status(500).json({ message: 'Internal server error.' });
+    }
+};
