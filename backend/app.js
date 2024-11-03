@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const csrf = require('csurf');
+// const csrf = require('csurf');
 const cookieParser = require('cookie-parser');
 const config = require('./config');
 const skillRoutes = require('./routes/skillRoutes');
@@ -18,13 +18,13 @@ app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(bodyParser.json());
 
-const csrfProtection = csrf({ cookie: true });
-app.use(csrfProtection);
+// const csrfProtection = csrf({ cookie: true });
+// app.use(csrfProtection);
 
 // Add a route to get CSRF token
-app.get('/api/csrf-token', (req, res) => {
-    res.json({ csrfToken: req.csrfToken() });
-});
+// app.get('/api/csrf-token', (req, res) => {
+//     res.json({ csrfToken: req.csrfToken() });
+// });
 
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', 'https://e-workspace-peach.vercel.app');
